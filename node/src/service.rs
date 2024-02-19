@@ -13,9 +13,10 @@ use cumulus_client_service::{
     build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks,
     BuildNetworkParams, CollatorSybilResistance, DARecoveryProfile, StartRelayChainTasksParams,
 };
-#[cfg(feature = "experimental")]
-use cumulus_primitives_core::relay_chain::ValidationCode;
-use cumulus_primitives_core::{relay_chain::CollatorPair, ParaId};
+use cumulus_primitives_core::{
+    relay_chain::{CollatorPair, ValidationCode},
+    ParaId,
+};
 use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 // Substrate Imports
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
@@ -311,7 +312,6 @@ async fn start_node_impl(
     if validator {
         start_consensus(
             client.clone(),
-            #[cfg(feature = "experimental")]
             backend.clone(),
             block_import,
             prometheus_registry.as_ref(),
@@ -366,7 +366,7 @@ fn build_import_queue(
 
 fn start_consensus(
     client: Arc<ParachainClient>,
-    #[cfg(feature = "experimental")] backend: Arc<ParachainBackend>,
+    backend: Arc<ParachainBackend>,
     block_import: ParachainBlockImport,
     prometheus_registry: Option<&Registry>,
     telemetry: Option<TelemetryHandle>,
@@ -381,11 +381,6 @@ fn start_consensus(
     overseer_handle: OverseerHandle,
     announce_block: Arc<dyn Fn(Hash, Option<Vec<u8>>) + Send + Sync>,
 ) -> Result<(), sc_service::Error> {
-    #[cfg(not(feature = "experimental"))]
-    use cumulus_client_consensus_aura::collators::basic::{
-        self as basic_aura, Params as BasicAuraParams,
-    };
-    #[cfg(feature = "experimental")]
     use cumulus_client_consensus_aura::collators::lookahead::{self as aura, Params as AuraParams};
 
     // NOTE: because we use Aura here explicitly, we can use
@@ -408,28 +403,6 @@ fn start_consensus(
         announce_block,
         client.clone(),
     );
-
-    #[cfg(not(feature = "experimental"))]
-    let params = BasicAuraParams {
-        create_inherent_data_providers: move |_, ()| async move { Ok(()) },
-        block_import,
-        para_client: client,
-        relay_client: relay_chain_interface,
-        sync_oracle,
-        keystore,
-        collator_key,
-        para_id,
-        overseer_handle,
-        slot_duration,
-        relay_chain_slot_duration,
-        proposer,
-        collator_service,
-        // Very limited proposal time.
-        authoring_duration: Duration::from_millis(500),
-        collation_request_receiver: None,
-    };
-
-    #[cfg(feature = "experimental")]
     let params = AuraParams {
         create_inherent_data_providers: move |_, ()| async move { Ok(()) },
         block_import,
@@ -452,12 +425,6 @@ fn start_consensus(
         authoring_duration: Duration::from_millis(1500),
     };
 
-    #[cfg(not(feature = "experimental"))]
-    let fut =
-        basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(
-            params,
-        );
-    #[cfg(feature = "experimental")]
     let fut =
         aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(
             params,
