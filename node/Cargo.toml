@@ -77,7 +77,7 @@ substrate-build-script-utils = { workspace = true }
 
 [features]
 default = []
-experimental = []
+experimental = ["parachain-template-runtime/experimental"]
 runtime-benchmarks = [
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
